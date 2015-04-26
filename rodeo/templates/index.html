@@ -271,22 +271,26 @@
   
   function getLastWord(editor) {
     var pos = editor.getCursorPosition();
-    var column = pos.column - 1;
-    var wordRange = editor.session.getAWordRange(pos.row, column);
-    var text = editor.session.getTextRange(wordRange);
+    var cur = { row: pos.row, column: pos.column };
 
-    var newPos = { row: wordRange.start.row, column: wordRange.start.column-1 };
-    if (editor.session.getTextRange({start: newPos, end: wordRange.start })==".") {
-      var variable = editor.session.getTextRange(editor.session.getAWordRange(newPos.row, newPos.column));
-      text = variable + "." + text;
+    var text;
+    while (cur.column >= 0) {
+      text = editor.session.getTextRange({ start: cur, end: pos });
+      if (/ /.test(text)) {
+        cur.column++;
+        text = editor.session.getTextRange({ start: cur, end: pos });
+        break;
+      }
+      cur.column--;
     }
-    return text;
+    return { text: text, cursorPos: pos.column - cur.column - 1 };
   }
 
   function createEditor(id) {
     var langTools = ace.require("ace/ext/language_tools");
     var Autocomplete = ace.require("ace/autocomplete").Autocomplete;
     var editor = ace.edit(id);
+    editor.$blockScrolling = Infinity;
     editor.completer = new Autocomplete(editor);
     $.get("/rc", function(d) {
       setKeyBindings(d.rc.keyBindings || null);
@@ -313,13 +317,13 @@
     });
     var pythonCompleter = {
       getCompletions: function(editor, session, pos, prefix, fn) {
-        var code;
-        if (prefix.length==0) {
-          code = getLastWord(editor) + ".";
-        } else {
-          code = getLastWord(editor);
-        }
-        $.post("/", { code: code, complete: true }, function(d) {
+        var word = getLastWord(editor);
+        var payload = {
+          code: word.text,
+          cursorPos: word.cursorPos,
+          complete: true
+        };
+        $.post("/", payload, function(d) {
           d.output = JSON.parse(d.output);
           var predictions = d.output.map(function(p) {
             return { name: p.text, value: p.text, score: 100, meta:  p.dtype };

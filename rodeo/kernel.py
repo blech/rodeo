@@ -23,11 +23,15 @@ __dirname = os.path.dirname(os.path.abspath(__file__))
 # explanation of this in `complete` function
 autocomplete_patch = """
 import jedi
+import glob
+import re
 
 def __autocomplete(code):
     script = jedi.Interpreter(code, [globals()])
     results = []
     for completion in script.completions():
+        if completion.name.startswith("_"):
+            continue
         result = {
             "text": completion.name,
             "dtype": "---"
@@ -35,8 +39,16 @@ def __autocomplete(code):
         if code.endswith("."):
             result["dtype"] = "function"
         else:
-            result["dtype"] = "session variable" # type(globals().get(code)).__name__
+            result["dtype"] = "session variable"
+            # type(globals().get(code)).__name__
         results.append(result)
+    if re.match('["\\']', code):
+        code = code.replace('"', '').replace("'", "")
+        for f in glob.glob(code + "*"):
+            results.append({
+                "text": f,
+                "dtype": "file"
+            })
     print(json.dumps(results))
 """
 
