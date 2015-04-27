@@ -47,7 +47,7 @@ def get_file(filename):
     logging.info("getting file: %s" % filename)
     filename = os.path.join(active_dir, filename)
     logging.info("expanded filepath: %s" % filename)
-    if os.path.exists(filename):
+    if os.path.isfile(filename):
         return open(filename).read()
     else:
         logging.info("file does not exist: %s" % filename)
